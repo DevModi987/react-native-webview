@@ -155,65 +155,106 @@ public class RNCWebView extends WebView implements LifecycleEventListener {
 
     @Override
     public ActionMode startActionMode(ActionMode.Callback callback, int type) {
-      if(menuCustomItems == null ){
-        return super.startActionMode(callback, type);
-      }
+        // Keep selection working, but remove all ActionMode menu items
+        return super.startActionMode(new ActionMode.Callback2() {
 
-      return super.startActionMode(new ActionMode.Callback2() {
-        @Override
-        public boolean onCreateActionMode(ActionMode mode, Menu menu) {
-          for (int i = 0; i < menuCustomItems.size(); i++) {
-            menu.add(Menu.NONE, i, i, (menuCustomItems.get(i)).get("label"));
-          }
-          return true;
-        }
-
-        @Override
-        public boolean onPrepareActionMode(ActionMode actionMode, Menu menu) {
-          return false;
-        }
-
-        @Override
-        public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
-          WritableMap wMap = Arguments.createMap();
-          RNCWebView.this.evaluateJavascript(
-            "(function(){return {selection: window.getSelection().toString()} })()",
-            new ValueCallback<String>() {
-              @Override
-              public void onReceiveValue(String selectionJson) {
-                Map<String, String> menuItemMap = menuCustomItems.get(item.getItemId());
-                wMap.putString("label", menuItemMap.get("label"));
-                wMap.putString("key", menuItemMap.get("key"));
-                String selectionText = "";
-                try {
-                  selectionText = new JSONObject(selectionJson).getString("selection");
-                } catch (JSONException ignored) {}
-                wMap.putString("selectedText", selectionText);
-                dispatchEvent(RNCWebView.this, new TopCustomMenuSelectionEvent(RNCWebViewWrapper.getReactTagFromWebView(RNCWebView.this), wMap));
-                mode.finish();
-              }
+            @Override
+            public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+            boolean created = callback.onCreateActionMode(mode, menu);
+            menu.clear(); // remove Copy/Paste/Select all/Translate etc.
+            return created; // must return true to keep selection handles working
             }
-          );
-          return true;
-        }
 
-        @Override
-        public void onDestroyActionMode(ActionMode mode) {
-          mode = null;
-        }
+            @Override
+            public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+            boolean prepared = callback.onPrepareActionMode(mode, menu);
+            menu.clear(); // some devices repopulate here, clear again
+            return prepared;
+            }
 
-        @Override
-        public void onGetContentRect (ActionMode mode,
-                View view,
-                Rect outRect){
+            @Override
+            public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+            // no items exist, but forward anyway
+            return callback.onActionItemClicked(mode, item);
+            }
+
+            @Override
+            public void onDestroyActionMode(ActionMode mode) {
+            callback.onDestroyActionMode(mode);
+            }
+
+            @Override
+            public void onGetContentRect(ActionMode mode, View view, Rect outRect) {
             if (callback instanceof ActionMode.Callback2) {
                 ((ActionMode.Callback2) callback).onGetContentRect(mode, view, outRect);
             } else {
                 super.onGetContentRect(mode, view, outRect);
             }
-          }
-      }, type);
+            }
+        }, type);
     }
+
+    // @Override
+    // public ActionMode startActionMode(ActionMode.Callback callback, int type) {
+    //   if(menuCustomItems == null ){
+    //     return super.startActionMode(callback, type);
+    //   }
+
+    //   return super.startActionMode(new ActionMode.Callback2() {
+    //     @Override
+    //     public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+    //       for (int i = 0; i < menuCustomItems.size(); i++) {
+    //         menu.add(Menu.NONE, i, i, (menuCustomItems.get(i)).get("label"));
+    //       }
+    //       return true;
+    //     }
+
+    //     @Override
+    //     public boolean onPrepareActionMode(ActionMode actionMode, Menu menu) {
+    //       return false;
+    //     }
+
+    //     @Override
+    //     public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+    //       WritableMap wMap = Arguments.createMap();
+    //       RNCWebView.this.evaluateJavascript(
+    //         "(function(){return {selection: window.getSelection().toString()} })()",
+    //         new ValueCallback<String>() {
+    //           @Override
+    //           public void onReceiveValue(String selectionJson) {
+    //             Map<String, String> menuItemMap = menuCustomItems.get(item.getItemId());
+    //             wMap.putString("label", menuItemMap.get("label"));
+    //             wMap.putString("key", menuItemMap.get("key"));
+    //             String selectionText = "";
+    //             try {
+    //               selectionText = new JSONObject(selectionJson).getString("selection");
+    //             } catch (JSONException ignored) {}
+    //             wMap.putString("selectedText", selectionText);
+    //             dispatchEvent(RNCWebView.this, new TopCustomMenuSelectionEvent(RNCWebViewWrapper.getReactTagFromWebView(RNCWebView.this), wMap));
+    //             mode.finish();
+    //           }
+    //         }
+    //       );
+    //       return true;
+    //     }
+
+    //     @Override
+    //     public void onDestroyActionMode(ActionMode mode) {
+    //       mode = null;
+    //     }
+
+    //     @Override
+    //     public void onGetContentRect (ActionMode mode,
+    //             View view,
+    //             Rect outRect){
+    //         if (callback instanceof ActionMode.Callback2) {
+    //             ((ActionMode.Callback2) callback).onGetContentRect(mode, view, outRect);
+    //         } else {
+    //             super.onGetContentRect(mode, view, outRect);
+    //         }
+    //       }
+    //   }, type);
+    // }
 
     @Override
     public void setWebViewClient(WebViewClient client) {
